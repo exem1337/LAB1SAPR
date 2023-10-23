@@ -19,6 +19,56 @@ void circle(float x, float y, float radius) {
 	UF_CURVE_create_arc(&arc_coords, &arc_id);
 }
 
+void spline(float startX, float startY, float endX, float endY) {
+	int degree = 3; // степень сплайна
+	int periodicity = 0; // сплайн не периодичный
+	int num_points = NUMBER_POINTS;
+	int save_def_data = 1;
+	tag_t spline_tag;
+	// заполнение структуры параметров сплайна
+	UF_CURVE_pt_slope_crvatr_t point_data[NUMBER_POINTS]
+	{
+	{ {startX, startY, 0.0}, // координаты первой точки
+	UF_CURVE_SLOPE_DIR, /*в ней будет задано направление
+	касательной */
+	{ 0.0, 1.0, 0.0000 }, // вектор касательной
+	UF_CURVE_CRVATR_NONE, // кривизна задаваться не будет
+	{ 30, 50, 0.0000 }
+	},
+		// в следующих точках задаются только координаты
+	   { {endX, endY, 0.0000},
+	   UF_CURVE_SLOPE_NONE, {0.0000, 0.0000, 0.0000},
+	   UF_CURVE_CRVATR_NONE, {0.0000, 0.0000, 0.0000}
+	   },
+		//{ {200, 72, 0.0000},
+		//UF_CURVE_SLOPE_AUTO, { 0.0000, 0.0000, 0.0000 },
+		//UF_CURVE_CRVATR_NONE, { 0.0000, 0.0000, 0.0000 }
+		//},
+		{ {600, 55, 0.0},
+		UF_CURVE_CRVATR_NONE, { 0.0000, 0.0000, 0.0000 },
+		UF_CURVE_CRVATR_NONE, { 0.0000, 0.0000, 0.0000 }
+		},
+		// в замыкающей точке, как и в первой, назначается вектор касательной
+		{ {endX, endY, 0.0},
+		UF_CURVE_SLOPE_DIR,{1.0, -0.15, 0.0},
+		UF_CURVE_CRVATR_NONE,{0.0, 0.0, 0.0}
+		}
+	};
+
+	if (!UF_initialize())
+	{
+		// создание сплайна
+		UF_CURVE_create_spline_thru_pts(degree,
+			periodicity,
+			num_points,
+			point_data,
+			NULL, //с заданием монотонности по умолчанию
+			save_def_data,
+			&spline_tag);
+		UF_terminate();
+	}
+}
+
 void line(float startX, float startY, float endX, float endY) {
 	tag_t entid = 0; 
 	UF_CURVE_line_t line_coords; 
