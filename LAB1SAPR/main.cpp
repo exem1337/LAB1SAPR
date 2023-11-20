@@ -110,36 +110,86 @@ void createArc(
 }
 
 void lab2() {
-	char msg[128] = "Задайте плоскость для создания окружности";
-	
-	// запуск диалога создания плоскости
+	// данные для окружности
+	tag_t arc_id, wcs_tag; //тэги окружности
+	//и мировой системы координат
+	UF_CURVE_arc_t arc_coords; //структура свойств дуги
+	// объявление данных для матрицы поворота
+	//зададим угол 60° и пересчитаем его в радианы
+	double ugol_Y = 0;
+	// объявим вектора осей Х и У
+	double vec_X[3] = { 1, 0, 0 }, vec_Y[3] = { 0, 1, 0 };
+	//объявим матрицы поворотов:
+	double mtxP[9], //вокруг оси Х
+		mtyP[9], //вокруг оси У
+		mt[9]; //суммарную матрицу поворота
+	//объявим теги систем координат
+	tag_t teg_wcs, csys_id;
+	// объявим точку начала координат
+	double center[3] = { 0,0,0 };
 
-	for (int i = 0; i < 5; i++) {
-		double plane_matrix[9] = {
-			0.866025, 0.5, 0.0 + i * 50,
-			-0.5, 0.866025, 0.0,
-			0.0, 0.0, 1.0 
-		};
+	// начало кода построения окружности
+	arc_coords.start_angle = 0.0; //начальный угол окружности
+	arc_coords.end_angle = 360.0 * DEGRA; //конечный угол
+	arc_coords.arc_center[0] = 0.0; //координата центра Х
+	arc_coords.arc_center[1] = 0.0; //координата центра Y
+	arc_coords.arc_center[2] = 0.0; //координата центра Z
+	arc_coords.radius = 30.0; //радиус окружности
 
-		double plane_origin[3] = { 0, 10, 20 };
-		tag_t mtx_id = i + 1;
-		tag_t csys_id = i + .5;
-		tag_t arc_id = i + .75;
-
-		UF_CURVE_arc_t arc;
-		arc.start_angle = 0.0;
-		arc.end_angle = TWOPI;
-		arc.radius = 50;
-
-		UF_CSYS_create_matrix(plane_matrix, &mtx_id);
-		UF_CSYS_create_csys(plane_origin, mtx_id, &csys_id);
+	for (int i = 0; i <= 4; i++) {
+		// начало кода работы с матрицами
+		// получим матрицу поворота на 60 вокруг оси Х
+		UF_MTX3_rotate_about_axis(vec_X, ugol_Y, mtxP);
+		// создадим тег суммарной матрицы поворота
+		UF_CSYS_create_matrix(mtxP, &teg_wcs);
+		// создадим тег системы координат на базе полученной матрицы
+		UF_CSYS_create_csys(center, teg_wcs, &csys_id);
+		// установим на экране созданную рабочую систему координат
 		UF_CSYS_set_wcs(csys_id);
+		UF_CSYS_ask_wcs(&wcs_tag); //получение абсолютных координат
+		//"перенос" абсолютных координат на создаваемую окружность
+		UF_CSYS_ask_matrix_of_object(wcs_tag, &arc_coords.matrix_tag);
+		//построение окружности
+		UF_CURVE_create_arc(&arc_coords, &arc_id);
 
-		arc.matrix_tag = mtx_id;
-		UF_MTX3_vec_multiply(plane_origin, plane_matrix, arc.arc_center);
-		arc.arc_center[0] += 30.0;
-		arc.arc_center[1] += 25.0;
-		UF_CURVE_create_arc(&arc, &arc_id);
+		int degree = 3; // степень сплайна
+		int periodicity = 0; // сплайн не периодичный
+		int num_points = 3;
+		int save_def_data = 1;
+		tag_t spline_tag;
+		// заполнение структуры параметров сплайна
+		UF_CURVE_pt_slope_crvatr_t point_data[3]{
+		{ 
+			{0.0, 0.0, 0.0}, // координаты первой точки
+			UF_CURVE_SLOPE_DIR, /*в ней будет задано направление
+			касательной */
+			{ 0.0, 1.0, 0.0000 }, // вектор касательной
+			UF_CURVE_CRVATR_NONE, // кривизна задаваться не будет
+			{ 0.0000, 0.0000, 0.0000 }
+		},
+		{ 
+			{0, 0, 20.0000 * i},
+			UF_CURVE_SLOPE_NONE, { 1.0000, 1.0000, 1.0000 },
+			UF_CURVE_CRVATR_NONE, { 0.0000, 0.0000, 0.0000 }
+		},
+		{ 
+			{0, 0.0, 40.0 * i},
+			UF_CURVE_SLOPE_DIR,{0.0, 0, 0.0},
+			UF_CURVE_CRVATR_NONE,{0.0, 0.0, 0.0}
+		}};
+
+		UF_CURVE_create_spline_thru_pts(
+			degree,
+			periodicity,
+			num_points,
+			point_data,
+			NULL, //с заданием монотонности по умолчанию
+			save_def_data,
+			&spline_tag
+		);
+
+
+		ugol_Y += 45 * DEGRA;
 	}
 }
 
@@ -362,7 +412,9 @@ void ufusr(char* param, int* retcode, int paramLen)
 
 	// doSomeShit();
 
-	lab2Serega();
+	//lab2Serega();
+
+	lab2();
 
 	UF_terminate();
 }
