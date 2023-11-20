@@ -7,6 +7,8 @@
 #include <uf_part.h>
 #include <uf_modl.h>
 #include <uf_object_types.h>
+#include <uf_obj.h>
+#include <uf_mtx.h>
 
 void circle(float x, float y, float radius) {
 	tag_t arc_id, wcs_tag; 
@@ -23,56 +25,6 @@ void circle(float x, float y, float radius) {
 	//"перенос" абсолютных координат на создаваемую окружность
 	UF_CSYS_ask_matrix_of_object(wcs_tag, &arc_coords.matrix_tag);
 	UF_CURVE_create_arc(&arc_coords, &arc_id);
-}
-
-void spline(float startX, float startY, float endX, float endY) {
-	int degree = 3; // степень сплайна
-	int periodicity = 0; // сплайн не периодичный
-	int num_points = NUMBER_POINTS;
-	int save_def_data = 1;
-	tag_t spline_tag;
-	// заполнение структуры параметров сплайна
-	UF_CURVE_pt_slope_crvatr_t point_data[NUMBER_POINTS]
-	{
-	{ {startX, startY, 0.0}, // координаты первой точки
-	UF_CURVE_SLOPE_DIR, /*в ней будет задано направление
-	касательной */
-	{ 0.0, 1.0, 0.0000 }, // вектор касательной
-	UF_CURVE_CRVATR_NONE, // кривизна задаваться не будет
-	{ 30, 50, 0.0000 }
-	},
-		// в следующих точках задаются только координаты
-	   { {endX, endY, 0.0000},
-	   UF_CURVE_SLOPE_NONE, {0.0000, 0.0000, 0.0000},
-	   UF_CURVE_CRVATR_NONE, {0.0000, 0.0000, 0.0000}
-	   },
-		//{ {200, 72, 0.0000},
-		//UF_CURVE_SLOPE_AUTO, { 0.0000, 0.0000, 0.0000 },
-		//UF_CURVE_CRVATR_NONE, { 0.0000, 0.0000, 0.0000 }
-		//},
-		{ {600, 55, 0.0},
-		UF_CURVE_CRVATR_NONE, { 0.0000, 0.0000, 0.0000 },
-		UF_CURVE_CRVATR_NONE, { 0.0000, 0.0000, 0.0000 }
-		},
-		// в замыкающей точке, как и в первой, назначается вектор касательной
-		{ {endX, endY, 0.0},
-		UF_CURVE_SLOPE_DIR,{1.0, -0.15, 0.0},
-		UF_CURVE_CRVATR_NONE,{0.0, 0.0, 0.0}
-		}
-	};
-
-	if (!UF_initialize())
-	{
-		// создание сплайна
-		UF_CURVE_create_spline_thru_pts(degree,
-			periodicity,
-			num_points,
-			point_data,
-			NULL, //с заданием монотонности по умолчанию
-			save_def_data,
-			&spline_tag);
-		UF_terminate();
-	}
 }
 
 void line(float startX, float startY, float endX, float endY) {
@@ -157,6 +109,40 @@ void createArc(
 	UF_CURVE_create_arc(&arc, &arc_id);
 }
 
+void lab2() {
+	char msg[128] = "Задайте плоскость для создания окружности";
+	
+	// запуск диалога создания плоскости
+
+	for (int i = 0; i < 5; i++) {
+		double plane_matrix[9] = {
+			0.866025, 0.5, 0.0 + i * 50,
+			-0.5, 0.866025, 0.0,
+			0.0, 0.0, 1.0 
+		};
+
+		double plane_origin[3] = { 0, 10, 20 };
+		tag_t mtx_id = i + 1;
+		tag_t csys_id = i + .5;
+		tag_t arc_id = i + .75;
+
+		UF_CURVE_arc_t arc;
+		arc.start_angle = 0.0;
+		arc.end_angle = TWOPI;
+		arc.radius = 50;
+
+		UF_CSYS_create_matrix(plane_matrix, &mtx_id);
+		UF_CSYS_create_csys(plane_origin, mtx_id, &csys_id);
+		UF_CSYS_set_wcs(csys_id);
+
+		arc.matrix_tag = mtx_id;
+		UF_MTX3_vec_multiply(plane_origin, plane_matrix, arc.arc_center);
+		arc.arc_center[0] += 30.0;
+		arc.arc_center[1] += 25.0;
+		UF_CURVE_create_arc(&arc, &arc_id);
+	}
+}
+
 void doSomeShit() {
 	char a[] = "30.0";
 	char b[] = "80.0";
@@ -213,6 +199,118 @@ void doSomeShit() {
 				ref_pt, direction, create, &features);
 }
 
+void labserega() {
+	line(0.0, 0.0, 100, 0);
+	line(0.0, 10, 100, 10);
+
+	line(100, 0, 100, 10);
+	line(100, 10, 92.5, 10);
+	line(92.5, 10, 75, 80);
+
+	line(75, 80, 67.5, 80);
+	line(25, 80, 32.5, 80);
+
+	line(25, 80, 7.5, 10);
+	line(7.5, 10, 0, 10);
+	line(0, 10, 0, 0);
+
+	createArc(
+		new double[3] { 50, 80, 0 },
+		25,
+		180,
+		360
+	);
+
+	createArc(
+		new double[3] { 50, 80, 0 },
+		17.5,
+		180,
+		360
+	);
+
+	circle(50, 40, 7.5);
+}
+
+void lab2Serega() {
+	line(0, 0, 1120, 0);
+	line(1120, 0, 1120, 73);
+	line(0, 73, 1120, 73);
+	line(0, 0, 0, 73);
+
+
+	#define NUMBER_POINTS 5 //количество точек в сплайне зададим пять
+	int degree = 3; // строить будем сплайн третьей степени
+	int periodicity = 0; // не периодичный сплайн
+	int num_points = NUMBER_POINTS;
+	// объявление массива структур с данными по точкам
+	UF_CURVE_pt_slope_crvatr_t point_data[NUMBER_POINTS];
+	// зададим массив параметров точек
+	double parameters[NUMBER_POINTS] = { 0.00, 0.17, 0.32, 0.45, 1.29 };
+	// зададим массив координат точек
+	double points[3 * NUMBER_POINTS] = {
+	0, 73, 0,
+	112, 87, 0,
+	224, 101, 0,
+	346, 115, 0,
+	468, 129, 0, };
+	// зададим массив методов задания касательных
+	int slopeTypes[NUMBER_POINTS] = {
+	UF_CURVE_SLOPE_DIR,
+	UF_CURVE_SLOPE_AUTO,
+	UF_CURVE_SLOPE_NONE,
+	UF_CURVE_SLOPE_DIR,
+	UF_CURVE_SLOPE_VEC };
+	// зададим массив векторов касательных в точках
+	double slopeVecs[3 * NUMBER_POINTS] = {
+	1.2300, 55.0506, 0,
+	0.0000, 660.0000, 0,
+	0.0000, 70.0000, 0,
+	0.5000, 1.0000, 0,
+	1.0000,-2.0000, 0 };
+	// зададим массив методов задания кривизн в точках
+	int crvatrTypes[NUMBER_POINTS] = {
+	UF_CURVE_CRVATR_NONE,
+	UF_CURVE_CRVATR_AUTO_DIR,
+	UF_CURVE_CRVATR_NONE,
+	UF_CURVE_CRVATR_VEC,
+	UF_CURVE_CRVATR_VEC };
+	// зададим массив векторов кривизн в точках
+	double crvatrVecs[3 * NUMBER_POINTS] = {
+	0.0000, 67.0000, 0.0000,
+	1.0000, 42.5780, 0,
+	0.0000, 30.0000, 0,
+	1.0000, 71.0000, 0,
+	-1.0000, 91.0000, 0 };
+	int i, save_def_data = 1;
+	tag_t spline_tag;
+	if (!UF_initialize())
+	{ /* выполним цикл переноса данных из заданных массивов в
+	соответствующие поля структуры данных сплайна */
+		for (i = 0; i < NUMBER_POINTS; i++)
+		{
+			point_data[i].point[0] = points[3 * i];
+			point_data[i].point[1] = points[3 * i + 1];
+			point_data[i].point[2] = points[3 * i + 2];
+			point_data[i].slope_type = slopeTypes[i];
+			point_data[i].slope[0] = slopeVecs[3 * i];
+			point_data[i].slope[1] = slopeVecs[3 * i + 1];
+			point_data[i].slope[2] = slopeVecs[3 * i + 2];
+			point_data[i].crvatr_type = crvatrTypes[i];
+			point_data[i].crvatr[0] = crvatrVecs[3 * i];
+			point_data[i].crvatr[1] = crvatrVecs[3 * i + 1];
+			point_data[i].crvatr[2] = crvatrVecs[3 * i + 2];
+		}
+		// создание сплайна
+		UF_CURVE_create_spline_thru_pts(degree,
+			periodicity,
+			num_points,
+			point_data,
+			parameters,
+			save_def_data,
+			&spline_tag);
+	}
+}
+
 void ufusr(char* param, int* retcode, int paramLen)
 {
 	if (UF_initialize()) return;
@@ -264,35 +362,7 @@ void ufusr(char* param, int* retcode, int paramLen)
 
 	// doSomeShit();
 
-	line(0.0, 0.0, 100, 0);
-	line(0.0, 10, 100, 10);
-
-	line(100, 0, 100, 10);
-	line(100, 10, 92.5, 10);
-	line(92.5, 10, 75, 80);
-
-	line(75, 80, 67.5, 80);
-	line(25, 80, 32.5, 80);
-
-	line(25, 80, 7.5, 10);
-	line(7.5, 10, 0, 10);
-	line(0, 10, 0, 0);
-
-	createArc(
-		new double[3] { 50, 80, 0 },
-		25,
-		180,
-		360
-	);
-
-	createArc(
-		new double[3] { 50, 80, 0 },
-		17.5,
-		180,
-		360
-	);
-
-	circle(50, 40, 7.5);
+	lab2Serega();
 
 	UF_terminate();
 }
