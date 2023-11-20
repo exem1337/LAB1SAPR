@@ -1,6 +1,12 @@
 ﻿#include <uf.h> //файл описаний общих функций
 #include <uf_curve.h> //файл описаний функций кривых
 #include <uf_csys.h> //файл описаний функций работы с координатами
+#include <uf_defs.h>
+#include <uf_ui.h>
+#include <stdio.h>
+#include <uf_part.h>
+#include <uf_modl.h>
+#include <uf_object_types.h>
 
 void circle(float x, float y, float radius) {
 	tag_t arc_id, wcs_tag; 
@@ -23,12 +29,12 @@ void line(float startX, float startY, float endX, float endY) {
 	tag_t entid = 0; 
 	UF_CURVE_line_t line_coords; 
 
-	line_coords.start_point[0] = startX;// X1
-	line_coords.start_point[1] = startY;// Y1
-	line_coords.start_point[2] = 0.;// Z1
-	line_coords.end_point[0] = endX;// X2
-	line_coords.end_point[1] = endY;// Y2
-	line_coords.end_point[2] = 0.;// Z2
+	line_coords.start_point[0] = startX; // X1
+	line_coords.start_point[1] = startY; // Y1
+	line_coords.start_point[2] = 0.; // Z1
+	line_coords.end_point[0] = endX; // X2
+	line_coords.end_point[1] = endY; // Y2
+	line_coords.end_point[2] = 0.; // Z2
 
 	UF_CURVE_create_line(&line_coords, &entid);
 }
@@ -79,36 +85,164 @@ void rectangle(float startX, float startY, float sideWitdh) {
 	UF_CURVE_create_line(&line4_coords, &entid);
 }
 
+void createArc(
+	double center[3], // точка центра { x, y, z }
+	float radius, // радиус
+	int startAngle, // стартовый угол
+	int endAngle // конечный угол
+)
+{
+	tag_t arc_id, wcs_tag;
+	UF_CURVE_arc_t arc; 
+
+	arc.start_angle = startAngle * DEGRA;
+	arc.end_angle = endAngle * DEGRA;
+	arc.arc_center[0] = center[0];
+	arc.arc_center[1] = center[1];
+	arc.arc_center[2] = center[2];
+	arc.radius = radius;
+
+	UF_CSYS_ask_wcs(&wcs_tag); 
+	UF_CSYS_ask_matrix_of_object(wcs_tag, &arc.matrix_tag);
+	UF_CURVE_create_arc(&arc, &arc_id);
+}
+
+void doSomeShit() {
+	char a[] = "30.0";
+	char b[] = "80.0";
+	char t_a[] = "0.0";
+	/* Определяется массив линий с координатами их
+концов, используемых в эскизе выдавливаемого сечения */
+	UF_CURVE_line_t line[3] = {
+	{{10.0,0.0,0.0}, {10.0,40.0,0.0}},
+	{{10.0,0.0,0.0}, {40.0,0.0,0.0}},
+	{{10.0,40.0,0.0}, {40.0,40.0,0.0}} };
+	UF_CURVE_arc_t arc; //структура данных дуги
+	tag_t objarray[4], //теги для трех линий и дуги
+		wcs_tag; //тег для системы координат
+	int i;
+	//параметры операции выдавливания
+	//расстояние начала и расстояние окончания выдавливания
+
+		char* limit[2] = { a, b };
+	//орты вектора направления выдавливания
+	double direction[3] = { 0.0, 0.0, 1.0 };
+	//признак создания самостоятельного тела
+	UF_FEATURE_SIGN create = UF_NULLSIGN;
+	//заготовки указателей на перечии объектов
+	uf_list_p_t loop_list, //Список объектов, подлежащих выдавливанию (элементы сечения)
+		features; //Список созданных идентификаторов объектов
+	//угол конусности в градусах
+	char* taper_angle = t_a;
+	//параметр не используется
+	double ref_pt[3];
+
+		// задание пераметров дуги в сечении
+		arc.start_angle = -90.0 * DEGRA;
+		arc.end_angle = 90.0 * DEGRA;
+		arc.arc_center[0] = 40.0;
+		arc.arc_center[1] = 20.0;
+		arc.arc_center[2] = 0.0;
+		arc.radius = 20.0;
+		for (i = 0; i < 3; i++) //построение трех линий сечения
+			UF_CURVE_create_line(&line[i], &objarray[i]);
+		//получение матрицы абсолютных координат
+		UF_CSYS_ask_wcs(&wcs_tag);
+		//связывание матрицы поворота дуги с абсолютными координатами
+		UF_CSYS_ask_matrix_of_object(wcs_tag, &arc.matrix_tag);
+		//построение дуги сечения
+		UF_CURVE_create_arc(&arc, &objarray[i]);
+		//создание пустого перечия объектов
+		UF_MODL_create_list(&loop_list);
+		//заполнение перечия тремя линиями и одной дугой
+		for (i = 0; i < 4; i++)
+			UF_MODL_put_list_item(loop_list, objarray[i]);
+	
+			//создание операции выдавливания
+			UF_MODL_create_extruded(loop_list, taper_angle, limit,
+				ref_pt, direction, create, &features);
+}
+
 void ufusr(char* param, int* retcode, int paramLen)
 {
 	if (UF_initialize()) return;
 
-	circle(54., 25., 7.5f);
+	//circle(54., 25., 7.5f);
 
-	line(0., 0., 115., 0.);
-	line(115., 0., 115., 10.);
-	line(115., 10., 107., 10.);
-	line(107., 10., 107., 40.);
-	line(107., 40., 115., 40.);
-	line(115., 40., 115., 50.);
-	line(115., 50., 0., 50.);
-	line(0., 50., 0., 0.);
+	//line(0., 0., 115., 0.);
+	//line(115., 0., 115., 10.);
+	//line(115., 10., 107., 10.);
+	//line(107., 10., 107., 40.);
+	//line(107., 40., 115., 40.);
+	//line(115., 40., 115., 50.);
+	//line(115., 50., 0., 50.);
+	//line(0., 50., 0., 0.);
 
-	line(27., 0., 27., 10.);
-	line(27., 50., 27., 40.);
-	line(81., 0., 81., 50.);
+	//line(27., 0., 27., 10.);
+	//line(27., 50., 27., 40.);
+	//line(81., 0., 81., 50.);
 
-	// левый квадрат
-	line(10., 10., 10., 40.);
-	line(10., 10., 34., 10.);
-	line(10., 40., 34., 40.);
-	line(34., 40., 34., 10.);
+	//// левый квадрат
+	//line(10., 10., 10., 40.);
+	//line(10., 10., 34., 10.);
+	//line(10., 40., 34., 40.);
+	//line(34., 40., 34., 10.);
 
-	//центральный большой квадрат
-	rectangle(34., 45., 40.);
+	////центральный большой квадрат
+	//rectangle(34., 45., 40.);
 
-	//центральный малый квадрат
-	rectangle(39., 40., 30.);
+	////центральный малый квадрат
+	//rectangle(39., 40., 30.);
+
+	//rectangle(51.5, 6.25 + 28.0, 28.);
+	//circle(51.5 + (28. / 2), 6.25 + (28. / 2), 9.5f);
+
+	////Container
+	//line(0., 0., 115., 0.);
+	//line(0., 0., 0., 40.);
+	//line(22., 0., 22., 40.);
+	//line(0., 40., 115., 40.);
+
+	////left edge container
+	//line(115., 0., 115., 12.5);
+	//line(115., 12.5, 115. - 15., 12.5);
+	//line(115. - 15., 12.5, 115. - 15., 12.5 + 15.0);
+	//line(115. - 15., 12.5 + 15.0, 115., 12.5 + 15.0);
+	//line(115., 15. + 12.5, 115., 15. + 12.5 + 12.5);
+
+	//rectangle(5., 14. + 12., 12.);
+
+	// doSomeShit();
+
+	line(0.0, 0.0, 100, 0);
+	line(0.0, 10, 100, 10);
+
+	line(100, 0, 100, 10);
+	line(100, 10, 92.5, 10);
+	line(92.5, 10, 75, 80);
+
+	line(75, 80, 67.5, 80);
+	line(25, 80, 32.5, 80);
+
+	line(25, 80, 7.5, 10);
+	line(7.5, 10, 0, 10);
+	line(0, 10, 0, 0);
+
+	createArc(
+		new double[3] { 50, 80, 0 },
+		25,
+		180,
+		360
+	);
+
+	createArc(
+		new double[3] { 50, 80, 0 },
+		17.5,
+		180,
+		360
+	);
+
+	circle(50, 40, 7.5);
 
 	UF_terminate();
 }
