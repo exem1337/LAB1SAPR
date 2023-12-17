@@ -663,7 +663,7 @@ void ufusr(char* param, int* retcode, int paramLen)
 	if (UF_initialize()) return;
 
 	lab1Oleg();
-	//lab2oleg();
+	//lab2();
 	//lab3();
 ;
 	UF_terminate();
